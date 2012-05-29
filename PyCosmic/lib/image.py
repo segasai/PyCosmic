@@ -1,6 +1,8 @@
 import pyfits, numpy
 from scipy import ndimage
 
+__version__ = "0.1"
+
 class Header(object):
     def __init__(self, header=None, cardlist=None, origin=None):
         """

@@ -2,10 +2,10 @@ import sys, numpy, pyfits
 from types import *
 from PyCosmic.lib.image import *
 
+__version__ = "0.1"
 
 
-
-def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=3, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, verbose=0, parallel=True):
+def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=3, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, verbose=False, parallel=True):
     """
            Detects and removes cosmics from astronomical images based on Laplacian edge 
            detection scheme combined with a PSF convolution approach (Husemann  et al. in prep.).
@@ -20,23 +20,23 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
                     Name of the FITS file for which the comsics should be detected
             out_image: string
                     Name of the  FITS file containing the cleaned image, a bad pixel mask extension and the error image if contained in the  input
-            rdnoise: string of float or string of header keyword
+            rdnoise: float or string of header keyword
                     Value or FITS header keyword for the readout noise in electrons
-            sigma_det: string of float, optional  with default: '5.0'
+            sigma_det: float, optional  with default: 5.0
                     Detection limit of edge pixel above the noise in (sigma units) to be detected as comiscs 
-            rlim: string of float, optional  with default: '1.1'
+            rlim: float, optional  with default: 1.1
                     Detection threshold between Laplacian edged and Gaussian smoothed image (should be >1)
-            iter: string of integer, optional with default: '3'
+            iter: integer, optional with default: 3
                     Number of iterations. Should be >1 to fully detect extended cosmics
-            sig_gauss: string of two comma separated floats, optional with default: '0.8,0.8'
+            sig_gauss: float, optional with default: 2.0
                     Sigma width of the Gaussian smoothing kernel in x and y direction on the CCD 
-            replace_box: string of two comma separated integers, optional with default: '5,5'
+            replace_box: array of two integers, optional with default: [5,5]
                     median box size in x and y to estimate replacement values from valid pixels
-            replace_error: strong of float, optional with default: '1e10'
+            replace_error: float, optional with default: 1e10
                     Error value for bad pixels in the comupted error image, will be ignored if empty
-            increase_radius: string of int, optional with default: '0'
+            increase_radius: integer, optional with default: 0
                     Increase the boundary of each detected cosmic ray pixel by the given number of pixels.
-            verbose: string of integer (0 or 1), optional  with default: 1
+            verbose: bollean, optional  with default: True
                     Show information during the processing on the command line (0 - no, 1 - yes)
                     
             Notes
@@ -103,7 +103,7 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
         cpus = 1
     # start iteration
     for i in xrange(iterations):
-        if verbose==1:
+        if verbose:
             print 'iteration %i'%(i+1)
         # follow the LACosmic scheme to select pixel 
         noise =out.medianImg((5, 5))
@@ -164,7 +164,7 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
         select = numpy.logical_or(numpy.logical_and((Lap2)>rlim, S_prime>sigma_det),  select)
         
         # print information on the screen if demanded
-        if verbose==1:
+        if verbose:
             dim = img_original.getDim()
             det_pix = numpy.sum(select)
             print 'Detected pixels: %i out of %i '%(numpy.sum(select), dim[0]*dim[1])
