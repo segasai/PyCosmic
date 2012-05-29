@@ -1,0 +1,49 @@
+#! /usr/bin/env python
+__version__ = "0.1"
+
+import argparse
+import PyCosmic
+
+
+parser = argparse.ArgumentParser(description="""
+Detects cosmic ray hits in a single CCD frame. Important: The raw
+frame is expected to be BIAS subtracted and in electron units! A bad pixel mask of cosmics and a cleaned image will be provided by the routine as an output.""", formatter_class=argparse.ArgumentDefaultsHelpFormatter )
+
+parser.add_argument("raw", type=str, help="""adfadf
+""")
+parser.add_argument("clean", type=str, help="""dafdaf
+""")
+parser.add_argument("mask", type=str, help="""adfadf
+""")
+parser.add_argument("rdnoise", type=str, help="""adfadf
+""")
+
+parser.add_argument("--siglim", type=float, default=5.0, help="""
+Default
+is 5.0.""")
+parser.add_argument("--rlim", type=float, default=1.2, help="""
+Default
+is 1.2.""")
+parser.add_argument("--iter", type=int, default=5, help="""
+Default
+is 5.""")
+parser.add_argument("--fwhm", type=float,  default=2.0, help="""
+Default
+is 2.0,2.0.""")
+parser.add_argument("--replacebox", type=int, nargs=2,  default=[5,5], help="""
+Default
+is 5,5.""")
+parser.add_argument("--radius", type=int, default=0, help="""
+Default
+is 0.""")
+parser.add_argument("--parallel", type=bool, default=True, help="""
+Default
+is True.""")
+parser.add_argument("--verbose", type=int, default=1, help="""
+Default
+is 1.""")
+
+args = parser.parse_args()
+
+PyCosmic.mod_LACosmic(args.raw, args.mask, args.clean, args.rdnoise, sigma_det=args.siglim,  rlim=args.rlim, iter=args.iter, fwhm_gauss=args.fwhm, replace_box=args.replacebox,    increase_radius=args.radius, parallel=args.parallel, verbose=args.verbose)
+

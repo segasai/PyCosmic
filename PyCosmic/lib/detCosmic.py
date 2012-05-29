@@ -1,0 +1,187 @@
+import sys, numpy, pyfits
+from types import *
+from PyCosmic.lib.image import *
+
+
+
+
+def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=3, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, verbose=0, parallel=True):
+    """
+           Detects and removes cosmics from astronomical images based on Laplacian edge 
+           detection scheme combined with a PSF convolution approach (Husemann  et al. in prep.).
+           
+           IMPORTANT: 
+           The image and the readout noise are assumed to be in units of electrons.
+           The image also needs to be BIAS subtracted!
+           
+            Parameters
+            --------------
+            image: string
+                    Name of the FITS file for which the comsics should be detected
+            out_image: string
+                    Name of the  FITS file containing the cleaned image, a bad pixel mask extension and the error image if contained in the  input
+            rdnoise: string of float or string of header keyword
+                    Value or FITS header keyword for the readout noise in electrons
+            sigma_det: string of float, optional  with default: '5.0'
+                    Detection limit of edge pixel above the noise in (sigma units) to be detected as comiscs 
+            rlim: string of float, optional  with default: '1.1'
+                    Detection threshold between Laplacian edged and Gaussian smoothed image (should be >1)
+            iter: string of integer, optional with default: '3'
+                    Number of iterations. Should be >1 to fully detect extended cosmics
+            sig_gauss: string of two comma separated floats, optional with default: '0.8,0.8'
+                    Sigma width of the Gaussian smoothing kernel in x and y direction on the CCD 
+            replace_box: string of two comma separated integers, optional with default: '5,5'
+                    median box size in x and y to estimate replacement values from valid pixels
+            replace_error: strong of float, optional with default: '1e10'
+                    Error value for bad pixels in the comupted error image, will be ignored if empty
+            increase_radius: string of int, optional with default: '0'
+                    Increase the boundary of each detected cosmic ray pixel by the given number of pixels.
+            verbose: string of integer (0 or 1), optional  with default: 1
+                    Show information during the processing on the command line (0 - no, 1 - yes)
+                    
+            Notes
+            -------
+            As described in the article by van Dokkum a fine structure images is created to distinguish 
+            between cosmic rays hits and compact real signals that are almost undersampled on the CCD.
+            For IFU data these are mainly emission lines from the sky or more importantly from the 
+            target objects itself.
+            We defined a new fine structure map as the ratio between the Lapacian image and a Gaussian 
+            smoothed image with a width of the Gaussian matching the PSF of the spectrograph in dispersion
+            AND cross-dispersion direction. If the given PSF is perfectly matching wtih the true PSF, a limit of 
+            rlim>1 is the cutting line between true signal and cosmic ray hits.
+            
+            References
+            --------------
+            van Dokkum, Pieter G. 2001, "Cosmic-Ray Rejection by Laplacian Edge Detection", 
+            PASP, 113, 1420
+            
+    """
+    # convert all parameters to proper type
+    
+    iterations = iter
+    sigma = fwhm_gauss/2.354
+    box_x = replace_box[0]
+    box_y = replace_box[1]
+    
+    # load image from FITS file
+    img = loadImage(image)
+    
+    # create empty mask if no mask is present in original image
+    if img._mask!=None:
+        mask_orig=img.getMask()
+    else:
+        mask_orig=numpy.zeros(img.getDim(), dtype=numpy.bool)
+    
+    # create a new Image instance to store the initial data array
+    img_original = Image(data=img.getData(), header=img.getHeader(), error = img.getError(),  mask=mask_orig)
+    img.setData(mask=numpy.zeros(img.getDim(), dtype=numpy.bool))
+    img.removeError()
+    
+    # estimate Poisson noise after roughly cleaning cosmics using a median filter
+    try:
+        rdnoise=img.getHdrValue(rdnoise)
+    except KeyError:
+        pass
+    
+    
+    # create empty mask
+    select = numpy.zeros(img.getDim(),dtype=numpy.bool)
+    
+    # define Laplacian convolution kernal
+    LA_kernel=numpy.array([[0,-1,0,],[-1,4,-1],[0,-1,0]])/4.0
+    out=img
+   
+    if parallel:
+        try:
+            from multiprocessing import Pool
+            from multiprocessing import cpu_count
+            cpus = cpu_count()
+        except:
+            cpus=1
+        
+    else:
+        cpus = 1
+    # start iteration
+    for i in xrange(iterations):
+        if verbose==1:
+            print 'iteration %i'%(i+1)
+        # follow the LACosmic scheme to select pixel 
+        noise =out.medianImg((5, 5))
+        select_neg2 = noise.getData()<=0
+        noise.setData(data=0, select=select_neg2)
+        noise=(noise+rdnoise**2).sqrt()
+        result = []
+        if cpus>1:
+            fine=out.convolveGaussImg(sigma, sigma, mask=True) 
+            fine_norm = out/fine
+            select_neg = fine_norm<0
+            fine_norm.setData(data=0, select=select_neg)
+            pool = Pool(cpus)
+            result.append(pool.apply_async(out.subsampleImg, args=([2])))
+            result.append(pool.apply_async(fine_norm.subsampleImg, args=([2])))
+            pool.close()
+            pool.join()
+            sub = result[0].get()
+            sub_norm = result[1].get()
+            pool.terminate()
+            pool = Pool(cpus)
+            result[0]=pool.apply_async(sub.convolveImg, args=([LA_kernel]))
+            result[1]=pool.apply_async(sub_norm.convolveImg, args=([LA_kernel])) 
+            pool.close()
+            pool.join()
+            conv = result[0].get()
+            select_neg = conv<0 
+            conv.setData(data=0, select=select_neg)  # replace all negative values with 0
+            Lap2 = result[1].get()
+            pool.terminate()
+            pool = Pool(cpus)
+            result[0]=pool.apply_async(conv.rebin, args=(2, 2))
+            result[1]=pool.apply_async(Lap2.rebin, args=(2, 2))
+            pool.close()
+            pool.join()
+            Lap = result[0].get()
+            Lap2 = result[1].get()
+            pool.terminate()
+            S = Lap/(noise*2) # normalize Laplacian image by the noise
+            S_prime = S-S.medianImg((5, 5)) # cleaning of the normalized Laplacian image
+        else:
+            sub = out.subsampleImg(2) # subsample image
+            conv= sub.convolveImg(LA_kernel) # convolve subsampled image with kernel
+            select_neg = conv<0 
+            conv.setData(data=0, select=select_neg)  # replace all negative values with 0
+            Lap = conv.rebin(2, 2) # rebin the data to original resolution
+            S = Lap/(noise*2) # normalize Laplacian image by the noise
+            S_prime = S-S.medianImg((5, 5)) # cleaning of the normalized Laplacian image
+            fine=out.convolveGaussImg(sigma, sigma, mask=True) # convolve image with a 2D Gaussian
+
+            fine_norm = out/fine
+            select_neg = fine_norm<0
+            fine_norm.setData(data=0, select=select_neg)
+            sub_norm = fine_norm.subsampleImg(2) # subsample image
+            Lap2 = (sub_norm).convolveImg(LA_kernel)
+            Lap2 = Lap2.rebin(2, 2) # rebin the data to original resolution
+        
+        select = numpy.logical_or(numpy.logical_and((Lap2)>rlim, S_prime>sigma_det),  select)
+        
+        # print information on the screen if demanded
+        if verbose==1:
+            dim = img_original.getDim()
+            det_pix = numpy.sum(select)
+            print 'Detected pixels: %i out of %i '%(numpy.sum(select), dim[0]*dim[1])
+        
+        if i==iterations-1:
+            img_original.setData(mask=True, select=select) # set the new mask
+            if increase_radius>0:
+                mask_img = Image(data=img_original._mask)
+                mask_new=mask_img.convolveImg(kernel=numpy.ones((2*increase_radius+1, 2*increase_radius+1)))
+                img_original.setData(mask=mask_new._data)
+            out=img_original.replaceMaskMedian(box_x, box_y, replace_error=replace_error) # replace possible corrput pixel with zeros for final output
+        else:
+            out.setData(mask=True, select=select)# set the new mask
+            out = out.replaceMaskMedian(box_x, box_y, replace_error=None)  # replace possible corrput pixel with zeros
+    out.writeFitsData(out_mask, extension_mask=0)
+    out.writeFitsData(out_clean, extension_data=0)
+       
+        
+
+    
