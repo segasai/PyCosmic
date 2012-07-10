@@ -1,35 +1,56 @@
+# Copyright 2012 Bernd Husemann
+#
+#
+#This file is part of PyCosmic.
+#
+#PyCosmic is free software: you can redistribute it and/or modify
+#it under the terms of the GNU General Public License  as published by
+#the Free Software Foundation, either version 3 of the License, or
+#any later version.
+#
+#PyCosmic is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#
+#You should have received a copy of the GNU General Public License
+#along with PyCosmic.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import sys, numpy, pyfits
 from types import *
 from PyCosmic.lib.image import *
 
-__version__ = "0.1"
+__version__ = "0.2"
 
 
-def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=3, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, verbose=False, parallel=True):
+def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, gain=1.0, verbose=False, parallel=True):
     """
            Detects and removes cosmics from astronomical images based on Laplacian edge 
            detection scheme combined with a PSF convolution approach (Husemann  et al. in prep.).
            
            IMPORTANT: 
            The image and the readout noise are assumed to be in units of electrons.
-           The image also needs to be BIAS subtracted!
+           The image also needs to be BIAS subtracted! The gain can be entered to convert the image from ADUs to electros, when this is down already set gain=1.0 as the default.
            
             Parameters
             --------------
             image: string
                     Name of the FITS file for which the comsics should be detected
-            out_image: string
-                    Name of the  FITS file containing the cleaned image, a bad pixel mask extension and the error image if contained in the  input
+	    out_mask: string
+                    Name of the  FITS file with the bad pixel mask 
+            out_clean: string
+                    Name of the  FITS file with the cleaned image 
             rdnoise: float or string of header keyword
                     Value or FITS header keyword for the readout noise in electrons
             sigma_det: float, optional  with default: 5.0
                     Detection limit of edge pixel above the noise in (sigma units) to be detected as comiscs 
-            rlim: float, optional  with default: 1.1
-                    Detection threshold between Laplacian edged and Gaussian smoothed image (should be >1)
-            iter: integer, optional with default: 3
+            rlim: float, optional  with default: 1.2
+                    Detection threshold between Laplacian edged and Gaussian smoothed image 
+            iter: integer, optional with default: 5
                     Number of iterations. Should be >1 to fully detect extended cosmics
-            sig_gauss: float, optional with default: 2.0
-                    Sigma width of the Gaussian smoothing kernel in x and y direction on the CCD 
+            fwhm_gauss: float, optional with default: 2.0
+                    FWHM of the Gaussian smoothing kernel in x and y direction on the CCD 
             replace_box: array of two integers, optional with default: [5,5]
                     median box size in x and y to estimate replacement values from valid pixels
             replace_error: float, optional with default: 1e10
@@ -39,21 +60,10 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
             verbose: bollean, optional  with default: True
                     Show information during the processing on the command line (0 - no, 1 - yes)
                     
-            Notes
-            -------
-            As described in the article by van Dokkum a fine structure images is created to distinguish 
-            between cosmic rays hits and compact real signals that are almost undersampled on the CCD.
-            For IFU data these are mainly emission lines from the sky or more importantly from the 
-            target objects itself.
-            We defined a new fine structure map as the ratio between the Lapacian image and a Gaussian 
-            smoothed image with a width of the Gaussian matching the PSF of the spectrograph in dispersion
-            AND cross-dispersion direction. If the given PSF is perfectly matching wtih the true PSF, a limit of 
-            rlim>1 is the cutting line between true signal and cosmic ray hits.
             
             References
             --------------
-            van Dokkum, Pieter G. 2001, "Cosmic-Ray Rejection by Laplacian Edge Detection", 
-            PASP, 113, 1420
+            B. Husemann et al. 2012  "", A&A, ??, ???
             
     """
     # convert all parameters to proper type
@@ -65,6 +75,17 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
     
     # load image from FITS file
     img = loadImage(image)
+    try:
+        gain=img.getHdrValue(gain)
+    except KeyError:
+        pass
+    gain = float(gain)
+
+    if gain!=1.0 and verbose==True:
+      print 'Convert image from ADUs to electrons using a gain factor of %f' %(gain)
+      
+    img = img*gain
+    img.writeFitsData('test.fits')
     
     # create empty mask if no mask is present in original image
     if img._mask!=None:
@@ -79,10 +100,12 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
     
     # estimate Poisson noise after roughly cleaning cosmics using a median filter
     try:
-        rdnoise=img.getHdrValue(rdnoise)
+        rdnoise=float(img.getHdrValue(rdnoise))
     except KeyError:
-        pass
-    
+        rdnoise=float(rdnoise)
+    if verbose==True:
+      print 'A value of %f is used for the electron read-out noise.'%(rdnoise)     
+      
     
     # create empty mask
     select = numpy.zeros(img.getDim(),dtype=numpy.bool)
@@ -96,15 +119,19 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
             from multiprocessing import Pool
             from multiprocessing import cpu_count
             cpus = cpu_count()
+            if cpus>1:
+	      cpus=2
         except:
             cpus=1
         
     else:
         cpus = 1
     # start iteration
+    if verbose:
+      print 'Start the detection process using %d CPU cores.'%(cpus)
     for i in xrange(iterations):
         if verbose:
-            print 'iteration %i'%(i+1)
+            print 'Start iteration %i'%(i+1)
         # follow the LACosmic scheme to select pixel 
         noise =out.medianImg((5, 5))
         select_neg2 = noise.getData()<=0
@@ -167,7 +194,7 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
         if verbose:
             dim = img_original.getDim()
             det_pix = numpy.sum(select)
-            print 'Detected pixels: %i out of %i '%(numpy.sum(select), dim[0]*dim[1])
+            print 'Total number of detected cosmics: %i out of %i pixels'%(numpy.sum(select), dim[0]*dim[1])
         
         if i==iterations-1:
             img_original.setData(mask=True, select=select) # set the new mask
@@ -179,8 +206,12 @@ def mod_LACosmic(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, i
         else:
             out.setData(mask=True, select=select)# set the new mask
             out = out.replaceMaskMedian(box_x, box_y, replace_error=None)  # replace possible corrput pixel with zeros
+    if verbose==True:
+      print 'Cleaned image is stored in file: %s'%(out_clean)
+      print 'Cosmics mask is stored in file: %s'%(out_mask)
     out.writeFitsData(out_mask, extension_mask=0)
     out.writeFitsData(out_clean, extension_data=0)
+    
        
         
 
