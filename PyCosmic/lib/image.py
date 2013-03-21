@@ -20,7 +20,7 @@
 import pyfits, numpy
 from scipy import ndimage
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 class Header(object):
     def __init__(self, header=None, cardlist=None, origin=None):
@@ -667,9 +667,10 @@ class Image(Header):
         return new_image
     
 
-    def subsampleImg(self, factor):
+
+    def subsampleImg(self):
         """
-            Subsample the image by a certain, e.g. each pixel is divided into several pixel so that their sum is the factor**2 times the original one.
+            Subsample the image by a factor of 2, e.g. each pixel is divided into 4 pixel so that their sum is 4 times the original one.
             
             Returns
             -----------
@@ -678,24 +679,47 @@ class Image(Header):
                        
         """
         # create empty array with 2 time larger size in both axes
+        new_dim = (self._dim[0]*2,self._dim[1]*2)
         if self._data !=None:
-            new_data = ndimage.interpolation.zoom(self._data, factor, output=numpy.float32, order=0, prefilter=False)
+            new_data = numpy.zeros(new_dim,dtype=numpy.float32)
         else:
             new_data = None
         if self._error != None:
-            new_error = ndimage.interpolation.zoom(self._error, factor, output=numpy.float32, order=0, prefilter=False)
+            new_error = numpy.zeros(new_dim,dtype=numpy.float32)
         else:
             new_error = None
         if self._mask != None:
-            new_mask= ndimage.interpolation.zoom(self._mask, factor, output="bool", order=0, prefilter=False)
+            new_mask= numpy.zeros(new_dim,dtype='bool')
         else:
             new_mask = None
-        
+            
+        # create index array of the new 
+        indices =numpy.indices(new_dim)+1
         # define selection for the the 4 different subpixels in which to store the original data
-        
+        select1 = numpy.logical_and(indices[0]%2==1,indices[1]%2==1)
+        select2 = numpy.logical_and(indices[0]%2==1,indices[1]%2==0)
+        select3 = numpy.logical_and(indices[0]%2==0,indices[1]%2==1)
+        select4 = numpy.logical_and(indices[0]%2==0,indices[1]%2==0)
+        # set pixel for the subsampled data, error and mask
+        if self._data != None:
+            new_data[select1] = self._data.flatten()
+            new_data[select2] = self._data.flatten()
+            new_data[select3] = self._data.flatten()
+            new_data[select4] = self._data.flatten()
+        if self._error != None:
+            new_error[select1] = self._error.flatten()
+            new_error[select2] = self._error.flatten()
+            new_error[select3] = self._error.flatten()
+            new_error[select4] = self._error.flatten()
+        if self._mask != None:
+            new_mask[select1] = self._mask.flatten()
+            new_mask[select2] = self._mask.flatten()
+            new_mask[select3] = self._mask.flatten()
+            new_mask[select4] = self._mask.flatten()
         # create new Image object with the new subsample data    
         new_image = Image(data=new_data, error=new_error,  mask=new_mask)
-        return new_image
+        return new_image      
+
         
     def rebin(self, bin_x, bin_y):
         """

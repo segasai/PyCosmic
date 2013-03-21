@@ -21,7 +21,7 @@ import sys, numpy, pyfits
 from types import *
 from PyCosmic.lib.image import *
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 
 def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, gain=1.0, verbose=False, parallel=True):
@@ -85,7 +85,7 @@ def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5,
       print 'Convert image from ADUs to electrons using a gain factor of %f' %(gain)
       
     img = img*gain
-    img.writeFitsData('test.fits')
+    #img.writeFitsData('test.fits')
     
     # create empty mask if no mask is present in original image
     if img._mask!=None:
@@ -144,8 +144,8 @@ def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5,
             select_neg = fine_norm<0
             fine_norm.setData(data=0, select=select_neg)
             pool = Pool(cpus)
-            result.append(pool.apply_async(out.subsampleImg, args=([2])))
-            result.append(pool.apply_async(fine_norm.subsampleImg, args=([2])))
+            result.append(pool.apply_async(out.subsampleImg, args=()))
+            result.append(pool.apply_async(fine_norm.subsampleImg, args=()))
             pool.close()
             pool.join()
             sub = result[0].get()
@@ -172,7 +172,7 @@ def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5,
             S = Lap/(noise*2) # normalize Laplacian image by the noise
             S_prime = S-S.medianImg((5, 5)) # cleaning of the normalized Laplacian image
         else:
-            sub = out.subsampleImg(2) # subsample image
+            sub = out.subsampleImg() # subsample image
             conv= sub.convolveImg(LA_kernel) # convolve subsampled image with kernel
             select_neg = conv<0 
             conv.setData(data=0, select=select_neg)  # replace all negative values with 0
@@ -184,7 +184,7 @@ def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5,
             fine_norm = out/fine
             select_neg = fine_norm<0
             fine_norm.setData(data=0, select=select_neg)
-            sub_norm = fine_norm.subsampleImg(2) # subsample image
+            sub_norm = fine_norm.subsampleImg() # subsample image
             Lap2 = (sub_norm).convolveImg(LA_kernel)
             Lap2 = Lap2.rebin(2, 2) # rebin the data to original resolution
         
