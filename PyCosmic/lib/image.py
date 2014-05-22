@@ -23,7 +23,7 @@ from scipy import ndimage
 __version__ = "0.3"
 
 class Header(object):
-    def __init__(self, header=None, cardlist=None, origin=None):
+    def __init__(self, header=None, origin=None):
         """
             Creates an Header object
             
@@ -31,9 +31,6 @@ class Header(object):
             --------------
             header : pyfits.header object, optional
                     Fits header as header
-            cardlist : pyfits.CardList object, optional
-                    Fits header as a card list,
-                    if header is given cardlist parameter will be ignored
             origin : string, optional
                     Name of the Fits file as the origin for the header,
                     can be the full path of the file
@@ -41,12 +38,7 @@ class Header(object):
         """
         if header != None:
             # Assign private variable and convert header to card list
-            self._cardlist = header.ascardlist()
             self._header = header
-        elif cardlist != None and header==None:
-            # Assign private variable and convert card list  to header
-            self._cardlist = cardlist
-            self._header = pyfits.Header(cardlist)
         else:
             # Create empty Header and CardList objects
             self._cardlist = None
@@ -60,7 +52,6 @@ class Header(object):
             
     def setHeader(self, header, origin=None):
         self._header = header
-        self._cardlist = header.ascardlist()
         self._origin=origin
   
       
@@ -80,9 +71,6 @@ class Header(object):
         """
         return self._header[keyword]
         
-    def getHdrCard(self, keyword):
-        return self._cardlist[keyword]
-
     def getHdrKeys(self):
         """
             Returns all valid keywords of the Header
@@ -96,9 +84,8 @@ class Header(object):
         
     def getHeader(self):
         return self._header
-    
-    def getHdrCardlist(self):
-        return self._cardlist
+
+  
         
                
 class Image(Header):
