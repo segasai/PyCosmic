@@ -17,11 +17,11 @@
 #along with PyCosmic.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import sys, numpy, pyfits
+import sys, numpy
 from types import *
 from PyCosmic.lib.image import *
 
-__version__ = "0.3"
+__version__ = "0.4"
 
 
 def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, gain=1.0, verbose=False, parallel=True):
@@ -77,18 +77,18 @@ def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5,
     img = loadImage(image)
     try:
         gain=img.getHdrValue(gain)
-    except KeyError:
+    except (KeyError, ValueError):
         pass
     gain = float(gain)
 
-    if gain!=1.0 and verbose==True:
+    if (gain!=1.0) and verbose==True:
       print 'Convert image from ADUs to electrons using a gain factor of %f' %(gain)
       
     img = img*gain
     #img.writeFitsData('test.fits')
     
     # create empty mask if no mask is present in original image
-    if img._mask!=None:
+    if img._mask is not None:
         mask_orig=img.getMask()
     else:
         mask_orig=numpy.zeros(img.getDim(), dtype=numpy.bool)

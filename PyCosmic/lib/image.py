@@ -16,11 +16,15 @@
 #You should have received a copy of the GNU General Public License
 #along with PyCosmic.  If not, see <http://www.gnu.org/licenses/>.
 
-
-import pyfits, numpy
+try:
+  import pyfits
+except ImportError:
+  from astropy.io import fits as pyfits
+import numpy
 from scipy import ndimage
+from scipy import stats
 
-__version__ = "0.3"
+__version__ = "0.4"
 
 class Header(object):
     def __init__(self, header=None, origin=None):
@@ -36,16 +40,15 @@ class Header(object):
                     can be the full path of the file
                        
         """
-        if header != None:
+        if header is not None:
             # Assign private variable and convert header to card list
             self._header = header
         else:
             # Create empty Header and CardList objects
-            self._cardlist = None
             self._header = None
         
         # Set the Fits file origin of the header if given
-        if origin != None:
+        if origin is not None:
             self._origin = origin
         else:
             self._origin = None
@@ -92,7 +95,7 @@ class Image(Header):
     def __init__(self, data=None, header=None,  mask=None, error=None, origin=None):
         Header.__init__(self, header=header, origin=origin)
         self._data = data
-        if self._data!=None:
+        if self._data is not None:
             self._dim = self._data.shape
         else:
             self._dim = None
@@ -110,21 +113,21 @@ class Image(Header):
             img = Image(header = self._header, origin=self._origin)
             
             # add data if contained in both
-            if self._data!=None and other._data!=None:
+            if self._data is not None and other._data is not None:
                 new_data = self._data+other._data 
                 img.setData(data = new_data)
             else:
                 img.setData(data = self._data)
             
             # add error if contained in both 
-            if self._error!=None and other._error!=None:
+            if self._error is not None and other._error is not None:
                 new_error = numpy.sqrt(self._error**2+other._error**2) 
                 img.setData(error=new_error)
             else:
                 img.setData(error=self._error)
                 
             # combined mask of valid pixels if contained in both     
-            if self._mask!=None and other._mask!=None:
+            if self._mask is not None and other._mask is not None:
                 new_mask = numpy.logical_or(self._mask, other._mask) 
                 img.setData(mask=new_mask)
             else:
@@ -135,7 +138,7 @@ class Image(Header):
         elif isinstance(other,  numpy.ndarray):
             img = Image(error=self._error, mask=self._mask, header = self._header, origin=self._origin)
     
-            if self._data!=None:  # check if there is data in the object
+            if self._data is not None:  # check if there is data in the object
                 dim = other.shape
                 #add ndarray according do its dimensions
                 if self._dim == dim:
@@ -173,21 +176,21 @@ class Image(Header):
             img = Image(header = self._header, origin=self._origin)
             
             # subtract data if contained in both
-            if self._data!=None and other._data!=None:
+            if self._data is not None and other._data is not None:
                 new_data = self._data-other._data 
                 img.setData(data = new_data)
             else:
                 img.setData(data = self._data)
             
             # add error if contained in both 
-            if self._error!=None and other._error!=None:
+            if self._error is not None and other._error is not None:
                 new_error = numpy.sqrt(self._error**2+other._error**2) 
                 img.setData(error=new_error)
             else:
                 img.setData(error=self._error)
                 
             # combined mask of valid pixels if contained in both     
-            if self._mask!=None and other._mask!=None:
+            if self._mask is not None and other._mask is not None:
                 new_mask = numpy.logical_or(self._mask, other._mask) 
                 img.setData(mask=new_mask)
             else:
@@ -198,7 +201,7 @@ class Image(Header):
         elif isinstance(other,  numpy.ndarray):
             img = Image(error=self._error, mask=self._mask, header = self._header, origin=self._origin)
     
-            if self._data!=None:  # check if there is data in the object
+            if self._data is not None:  # check if there is data in the object
                 dim = other.shape
                 #add ndarray according do its dimensions
                 if self._dim == dim:
@@ -234,21 +237,21 @@ class Image(Header):
             img = Image(header = self._header, origin=self._origin)
             
             # subtract data if contained in both
-            if self._data!=None and other._data!=None:
+            if self._data is not None and other._data is not None:
                 new_data = self._data/other._data 
                 img.setData(data = new_data)
             else:
                 img.setData(data = self._data)
             
             # add error if contained in both 
-            if self._error!=None and other._error!=None:
+            if self._error is not None and other._error is not None:
                 new_error = numpy.sqrt((self._error/other._data)**2+(self._data*other._error/other._data**2)**2) 
                 img.setData(error=new_error)
             else:
                 img.setData(error=self._error)
                 
             # combined mask of valid pixels if contained in both     
-            if self._mask!=None and other._mask!=None:
+            if self._mask is not None and other._mask is not None:
                 new_mask = numpy.logical_or(self._mask, other._mask) 
                 img.setData(mask=new_mask)
             else:
@@ -259,28 +262,28 @@ class Image(Header):
         elif isinstance(other,  numpy.ndarray):
             img = Image(error=self._error, mask=self._mask, header = self._header, origin=self._origin)
     
-            if self._data!=None:  # check if there is data in the object
+            if self._data is not None:  # check if there is data in the object
                 dim = other.shape
                 #add ndarray according do its dimensions
                 if self._dim == dim:
                     new_data= self._data/other
-                    if self._error!=None:
+                    if self._error is not None:
                         new_error = self._error/other
                     else:
                         new_error = None
                 elif len(dim)==1:
                     if self._dim[0] == dim[0]:
                         new_data = self._data/other[:, numpy.newaxis]
-                        if self._error!=None:
+                        if self._error is not None:
                             new_error = self._error/other[:, numpy.newaxis]
                         else:
-                            new_error!=None
+                            new_error is not None
                     elif self._dim[1] == dim[0]:
                         new_data = self._data/other[numpy.newaxis, :]
-                        if self._error!=None:
+                        if self._error is not None:
                             new_error = self._error/other[numpy.newaxis, :]
                         else:
-                            new_error!=None
+                            new_error is not None
                 else:
                     new_data = self._data
                 img.setData(data=new_data,  error = new_error) 
@@ -289,7 +292,7 @@ class Image(Header):
             # try to do addtion for other types, e.g. float, int, etc.
             try:
                 new_data = self._data/other
-                if self._error!=None:
+                if self._error is not None:
                     new_error = self._error/other
                 else:
                     new_error = None
@@ -309,21 +312,21 @@ class Image(Header):
             img = Image(header = self._header, origin=self._origin)
             
             # subtract data if contained in both
-            if self._data!=None and other._data!=None:
+            if self._data is not None and other._data is not None:
                 new_data = self._data*other._data 
                 img.setData(data = new_data)
             else:
                 img.setData(data = self._data)
             
             # add error if contained in both 
-            if self._error!=None and other._error!=None:
+            if self._error is not None and other._error is not None:
                 new_error = numpy.sqrt((self._error*other._data)**2+(self._data*other._error)**2) 
                 img.setData(error=new_error)
             else:
                 img.setData(error=self._error)
                 
             # combined mask of valid pixels if contained in both     
-            if self._mask!=None and other._mask!=None:
+            if self._mask is not None and other._mask is not None:
                 new_mask = numpy.logical_or(self._mask, other._mask) 
                 img.setData(mask=new_mask)
             else:
@@ -334,7 +337,7 @@ class Image(Header):
         elif isinstance(other,  numpy.ndarray):
             img = Image(error=self._error, mask=self._mask, header = self._header, origin=self._origin)
     
-            if self._data!=None:  # check if there is data in the object
+            if self._data is not None:  # check if there is data in the object
                 dim = other.shape
                 #add ndarray according do its dimensions
                 if self._dim == dim:
@@ -392,12 +395,12 @@ class Image(Header):
                 A full Image object
                        
         """
-        if self._data!=None:
+        if self._data is not None:
             new_data = numpy.sqrt(self._data) #sqrt of the data
         else:
             new_data = None
         
-        if self._error!=None and self._data!=None:
+        if self._error is not None and self._data is not None:
             new_error = 1/(2*numpy.sqrt(self._data))*self._error #corresponding error
         else:
             new_error = None
@@ -471,29 +474,29 @@ class Image(Header):
                 
         """
         # if not select given set the full image 
-        if select==None:
-            if data!=None:
+        if select is None:
+            if data is not None:
                 self._data = data # set data if given 
                 self._dim = data.shape # set dimension
                 
-            if mask!=None:
+            if mask is not None:
                 self._mask = mask # set mask if given 
                 self._dim = mask.shape # set dimension
                 
-            if error!=None:
+            if error is not None:
                 self._error = error  # set mask if given 
                 self._dim = error.shape # set dimension
-            if header!=None:
+            if header is not None:
                 self.setHeader(header) # set header
         else:
             # with select definied only partial data are set
-            if data!=None:
+            if data is not None:
                 self._data[select] = data
-            if mask!=None:
+            if mask is not None:
                 self._mask[select] = mask
-            if error!=None:
+            if error is not None:
                 self._error[select] = error
-            if header!=None:    
+            if header is not None:    
                 self.setHeader(header) # set header
                 
            
@@ -518,7 +521,7 @@ class Image(Header):
                 Number of the FITS extension containing the errors for the values
         """
         hdu = pyfits.open(filename, ignore_missing_end=True) #open FITS file
-        if extension_data== None and extension_mask==None and extension_error==None:
+        if extension_data is None and extension_mask is None and extension_error is None:
                 self._data = hdu[0].data
                 self._dim = self._data.shape # set dimension
                 if len(hdu)>1:
@@ -529,15 +532,15 @@ class Image(Header):
                             self._mask = hdu[i].data
         
         else:
-            if extension_data!=None:
+            if extension_data is not None:
                 self._data = hdu[extension_data].data # take data
                 self._dim = self._data.shape # set dimension
             
-            if extension_mask!=None:
+            if extension_mask is not None:
                 self._mask = hdu[extension_mask].data # take data
                 self._dim = self._mask.shape # set dimension
             
-            if extension_error!=None:
+            if extension_error is not None:
                 self._error = hdu[extension_error].data  # take data
                 self._dim = self._error.shape # set dimension
         
@@ -567,28 +570,28 @@ class Image(Header):
         
         # create primary hdus and image hdus 
         # data hdu
-        if extension_data==None and extension_error==None and extension_mask==None:
+        if extension_data is None and extension_error is None and extension_mask is None:
             hdus[0] = pyfits.PrimaryHDU(self._data) 
-            if self._error!=None:
+            if self._error is not None:
                 hdus[1] = pyfits.ImageHDU(self._error, name='ERROR')
-            if self._mask!=None:
+            if self._mask is not None:
                 hdus[2] = pyfits.ImageHDU(self._mask.astype('uint8'), name='BADPIX')
         else:
             if extension_data == 0:
                 hdus[0] = pyfits.PrimaryHDU(self._data) 
-            elif extension_data>0 and extension_data!=None:
+            elif extension_data>0 and extension_data is not None:
                 hdus[extension_data] = pyfits.ImageHDU(self._data, name='DATA') 
         
             # mask hdu
             if extension_mask == 0:
                 hdu = pyfits.PrimaryHDU(self._mask.astype('uint8'))
-            elif extension_mask>0 and extension_mask!=None:
+            elif extension_mask>0 and extension_mask is not None:
                 hdus[extension_mask] = pyfits.ImageHDU(self._mask.astype('uint8'), name='BADPIX')
         
             # error hdu
             if extension_error == 0:
                 hdu = pyfits.PrimaryHDU(self._error)
-            elif extension_error>0 and extension_error!=None:
+            elif extension_error>0 and extension_error is not None:
                 hdus[extension_error] = pyfits.ImageHDU(self._error, name='ERROR')
             
         # remove not used hdus
@@ -600,12 +603,11 @@ class Image(Header):
                 
         if len(hdus)>0:
             hdu = pyfits.HDUList(hdus) # create an HDUList object
-            if self._header !=None:
+            if self._header is not None:
                 hdu[0].header = self.getHeader() # add the primary header to the HDU
                 hdu[0].update_header()
         hdu.writeto(filename, clobber=True) # write FITS file to disc
-       
-        
+           
     def replaceMaskMedian(self, box_x, box_y, replace_error=1e20):
         """
             Replace bad pixels with the median value of pixel in a rectangular filter window 
@@ -645,7 +647,7 @@ class Image(Header):
             # compute the masked median within the filter window and replace data
             select = self._mask[range_y[0]:range_y[1],range_x[0]:range_x[1]]==0
             out_data[y_cors[m],x_cors[m]] = numpy.median(self._data[range_y[0]:range_y[1],range_x[0]:range_x[1]][select])
-            if self._error!=None and replace_error!=None:
+            if self._error is not None and replace_error is not None:
                 # replace the error of bad pixel if defined
                 out_error[y_cors[m],x_cors[m]] = replace_error
                 
@@ -667,42 +669,37 @@ class Image(Header):
         """
         # create empty array with 2 time larger size in both axes
         new_dim = (self._dim[0]*2,self._dim[1]*2)
-        if self._data !=None:
+        if self._data is not None:
             new_data = numpy.zeros(new_dim,dtype=numpy.float32)
         else:
             new_data = None
-        if self._error != None:
+        if self._error is not None:
             new_error = numpy.zeros(new_dim,dtype=numpy.float32)
         else:
             new_error = None
-        if self._mask != None:
+        if self._mask is not None:
             new_mask= numpy.zeros(new_dim,dtype='bool')
         else:
             new_mask = None
-            
-        # create index array of the new 
-        indices =numpy.indices(new_dim)+1
-        # define selection for the the 4 different subpixels in which to store the original data
-        select1 = numpy.logical_and(indices[0]%2==1,indices[1]%2==1)
-        select2 = numpy.logical_and(indices[0]%2==1,indices[1]%2==0)
-        select3 = numpy.logical_and(indices[0]%2==0,indices[1]%2==1)
-        select4 = numpy.logical_and(indices[0]%2==0,indices[1]%2==0)
+        
+       
         # set pixel for the subsampled data, error and mask
-        if self._data != None:
-            new_data[select1] = self._data.flatten()
-            new_data[select2] = self._data.flatten()
-            new_data[select3] = self._data.flatten()
-            new_data[select4] = self._data.flatten()
-        if self._error != None:
-            new_error[select1] = self._error.flatten()
-            new_error[select2] = self._error.flatten()
-            new_error[select3] = self._error.flatten()
-            new_error[select4] = self._error.flatten()
-        if self._mask != None:
-            new_mask[select1] = self._mask.flatten()
-            new_mask[select2] = self._mask.flatten()
-            new_mask[select3] = self._mask.flatten()
-            new_mask[select4] = self._mask.flatten()
+        if self._data is not None:
+	    new_data[::2,::2] = self._data
+	    new_data[::2,1::2] = self._data
+	    new_data[1::2,::2] = self._data
+	    new_data[1::2,1::2] = self._data
+        if self._error is not None:
+	    new_error[::2,::2] = self._error
+	    new_error[::2,1::2] = self._error
+	    new_error[1::2,::2] = self._error
+	    new_error[1::2,1::2] = self._error
+        if self._mask is not None:
+	    new_mask[::2,::2] = self._mask
+	    new_mask[::2,1::2] = self._mask
+	    new_mask[1::2,::2] = self._mask
+	    new_mask[1::2,1::2] = self._mask
+        
         # create new Image object with the new subsample data    
         new_image = Image(data=new_data, error=new_error,  mask=new_mask)
         return new_image      
@@ -729,14 +726,14 @@ class Image(Header):
         new = numpy.sum(numpy.reshape(self._data,(self._dim[0],self._dim[1]/bin_x,bin_x)),2)
         new2 = numpy.sum(numpy.reshape(new,(self._dim[0]/bin_y,bin_y, self._dim[1]/bin_x)),1)
         
-        if self._error!=None:
+        if self._error is not None:
             # sum over the error array (converted to variance and back) over each axis by the given pixel
             error_new = numpy.sum(numpy.reshape(self._error**2,(self._dim[0],self._dim[1]/bin_x,bin_x)),2)
             error_new2 = numpy.sqrt(numpy.sum(numpy.reshape(error_new,(self._dim[0]/bin_y,bin_y, self._dim[1]/bin_x)),1))
         else:
             error_new2=None
             
-        if self._mask!=None:
+        if self._mask is not None:
             # create the new  bad pixel mask 
             mask_new = numpy.sum(numpy.reshape(self._mask,(self._dim[0],self._dim[1]/bin_x,bin_x)),2)
             mask_new2 = numpy.sum(numpy.reshape(mask_new,(self._dim[0]/bin_y,bin_y, self._dim[1]/bin_x)),1)
@@ -768,7 +765,7 @@ class Image(Header):
         
         # convolve the data array with the given convolution kernel
         new = ndimage.filters.convolve(self._data,kernel,mode=mode)
-        if self._error!=None:
+        if self._error is not None:
             new_error = numpy.sqrt(ndimage.filters.convolve(self._error**2, kernel, mode=mode))
         else:
             new_error = None
@@ -797,7 +794,7 @@ class Image(Header):
         """
         # convolve the data array with the 2D Gaussian convolution kernel
         
-        if self._mask!=None and mask==True:
+        if self._mask is not None and mask==True:
             mask_data=self._data[self._mask]
             self._data[self._mask]=0
             gauss =ndimage.filters.gaussian_filter(self._data,(sigma_y,sigma_x),mode=mode)    
@@ -831,6 +828,15 @@ class Image(Header):
         new_data = ndimage.filters.median_filter(self._data,size ,mode=mode) # applying the median filter
         image = Image(data=new_data, header = self._header, error = self._error,  mask = self._mask) # create a new Image object
         return image
+      
+    def meanImg(self,size,sigma=5.0,mode='nearest'):
+      if sigma == 0:
+	new_data = ndimage.generic_filter(self._data,numpy.mean,size,mode=mode)
+      else:
+
+	new_data = ndimage.generic_filter(self._data,stats.sigmaclip,size,mode=mode,extra_keywords={'high':sigma})
+	
+       
        
        
 def loadImage(infile,  extension_data=None, extension_mask=None, extension_error=None):
