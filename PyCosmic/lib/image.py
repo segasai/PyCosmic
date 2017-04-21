@@ -1,4 +1,4 @@
-# Copyright 2012 Bernd Husemann
+# Copyright 2017 Bernd Husemann
 #
 #
 #This file is part of PyCosmic.
@@ -24,7 +24,7 @@ import numpy
 from scipy import ndimage
 from scipy import stats
 
-__version__ = "0.4"
+__version__ = "0.5"
 
 class Header(object):
     def __init__(self, header=None, origin=None):
@@ -606,7 +606,11 @@ class Image(Header):
             if self._header is not None:
                 hdu[0].header = self.getHeader() # add the primary header to the HDU
                 hdu[0].update_header()
-        hdu.writeto(filename, clobber=True) # write FITS file to disc
+        # write FITS file to disc
+        try:
+            hdu.writeto(filename, overwrite=True)
+        except TypeError:
+            hdu.writeto(filename, clobber=True) 
            
     def replaceMaskMedian(self, box_x, box_y, replace_error=1e20):
         """
@@ -642,8 +646,8 @@ class Image(Header):
         # iterate over bad pixels
         for m in xrange(len(y_cors)):
             # computes the min and max pixels of the filter window in x and y 
-            range_y = numpy.clip([y_cors[m]-delta_y, y_cors[m]+delta_y+1], 0, self._dim[0]-1)
-            range_x = numpy.clip([x_cors[m]-delta_x, x_cors[m]+delta_x+1], 0, self._dim[1]-1)
+            range_y = numpy.clip([y_cors[m]-delta_y, y_cors[m]+delta_y+1], 0, self._dim[0]-1).astype(numpy.uint16)
+            range_x = (numpy.clip([x_cors[m]-delta_x, x_cors[m]+delta_x+1], 0, self._dim[1]-1)).astype(numpy.uint16)
             # compute the masked median within the filter window and replace data
             select = self._mask[range_y[0]:range_y[1],range_x[0]:range_x[1]]==0
             out_data[y_cors[m],x_cors[m]] = numpy.median(self._data[range_y[0]:range_y[1],range_x[0]:range_x[1]][select])

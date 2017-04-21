@@ -21,7 +21,7 @@ import sys, numpy
 from types import *
 from PyCosmic.lib.image import *
 
-__version__ = "0.4"
+__version__ = "0.5"
 
 
 def detCos(image,  out_mask, out_clean,  rdnoise, sigma_det=5, rlim=1.2, iter=5, fwhm_gauss=2.0, replace_box=[5,5],  replace_error=1e10, increase_radius=0, gain=1.0, verbose=False, parallel=True):
