@@ -1,7 +1,6 @@
-from image import *
-from detCosmic import *
+from .image import *
+from .detection import *
 import copy_reg
-
 
 def _pickle_method(method):
       func_name = method.im_func.__name__
@@ -21,4 +20,5 @@ def _unpickle_method(func_name, obj, cls):
 	else:
 	  break
       return func.__get__(obj, cls)
+
 copy_reg.pickle(MethodType,_pickle_method, _unpickle_method)
