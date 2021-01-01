@@ -11,53 +11,60 @@ __email__ = "berndhusemann@gmx.de"
 __status__ = "Development"
 __version__ = "0.6"
 
-def det_cosmics(data, sigma_det=5, rlim=1.2, iterations=5, fwhm_gauss=2.0, replace_box=[5, 5],
-           replace_error=1e10, increase_radius=0, gain=1.0, rdnoise=1.0, bias=0.0, verbose=False):
+def det_cosmics(data, sigma_det=5, rlim=1.2, iterations=5, fwhm_gauss=[2.0,2.0], replace_box=[5, 5],
+           replace_error=1e6, increase_radius=0, gain=1.0, rdnoise=1.0, bias=0.0, verbose=False):
     """
            Detects and removes cosmics from astronomical images based on Laplacian edge
-           detection scheme combined with a PSF convolution approach (Husemann  et al. in prep.).
+           detection scheme combined with a PSF convolution approach.
 
            IMPORTANT:
            The image and the readout noise are assumed to be in units of electrons.
            The image also needs to be BIAS subtracted! The gain can be entered to convert the image from ADUs to
-           electros, when this is down already set gain=1.0 as the default.
+           electros, when this is down already set gain=1.0 as the default. If ncessary a homegnous bias level can
+           be subtracted if necessary but default is 0.0.
 
             Parameters
             --------------
-            image: string
-                    Name of the FITS file for which the comsics should be detected
-            out_mask: string
-                    Name of the  FITS file with the bad pixel mask
-            out_clean: string
-                    Name of the  FITS file with the cleaned image
-            rdnoise: float or string of header keyword
-                    Value or FITS header keyword for the readout noise in electrons
-            sigma_det: float, optional  with default: 5.0
+            data: ndarray
+                    Two-dimensional array representing the input image in which cosmic rays are detected.
+            sigma_det: float, default: 5.0
                     Detection limit of edge pixel above the noise in (sigma units) to be detected as comiscs
-            rlim: float, optional  with default: 1.2
+            rlim: float, default: 1.2
                     Detection threshold between Laplacian edged and Gaussian smoothed image
-            iter: integer, optional with default: 5
+            iterations: integer, default: 5
                     Number of iterations. Should be >1 to fully detect extended cosmics
-            fwhm_gauss: float, optional with default: 2.0
+            fwhm_gauss: list of floats, default: [2.0, 2.0]
                     FWHM of the Gaussian smoothing kernel in x and y direction on the CCD
-            replace_box: array of two integers, optional with default: [5,5]
+            replace_box: list integers, default: [5,5]
                     median box size in x and y to estimate replacement values from valid pixels
-            replace_error: float, optional with default: 1e10
-                    Error value for bad pixels in the comupted error image, will be ignored if empty
-            increase_radius: integer, optional with default: 0
+            replace_error: float, default: 1e6
+                    Error value for bad pixels in the comupted error image
+            increase_radius: integer, default: 0
                     Increase the boundary of each detected cosmic ray pixel by the given number of pixels.
-            verbose: bollean, optional  with default: True
-                    Show information during the processing on the command line (0 - no, 1 - yes)
+            gain: float, default=1.0
+                    Value of the gain in units of electrons/ADUs
+            rdnoise: float, default=1.0
+                    Value of the readout noise in electrons
+            bias: float, default=0.0
+                    Optional subtraction of a bias level.
+            verbose: boolean, default: False
+                    Flag for providing information during the processing on the command line
 
+            Ouput
+            -------------
+            out: Image class instance
+                Result of the detection process is an Image which contains .data, .error, .mask as attributes for the
+                cleaned image, the internally computed error image and a mask image with flags for cosmic ray pixels.
 
-            References
+            Reference
             --------------
-            B. Husemann et al. 2012  "", A&A, ??, ???
+            Husemann et al. 2012, A&A, Volume 545, A137 (https://ui.adsabs.harvard.edu/abs/2012A%26A...545A.137)
 
     """
 
     # convert all parameters to proper type
-    sigma = fwhm_gauss/2.354
+    sigma_x = fwhm_gauss[0] / 2.354
+    sigma_y = fwhm_gauss[1] / 2.354
     box_x = int(replace_box[0])
     box_y = int(replace_box[1])
 
@@ -114,7 +121,7 @@ def det_cosmics(data, sigma_det=5, rlim=1.2, iterations=5, fwhm_gauss=2.0, repla
         S_prime = S-S.medianImg((5, 5))  # cleaning of the normalized Laplacian image
 
         # Perform additional clean using a 2D Gaussian smoothing kernel
-        fine = out.convolve_gauss(sigma, sigma, mask=True)  # convolve image with a 2D Gaussian
+        fine = out.convolve_gauss(sigma_x, sigma_y, mask=True)  # convolve image with a 2D Gaussian
         fine_norm = out/fine
         select_neg = fine_norm < 0
         fine_norm.replace_subselect(select_neg, data=0)

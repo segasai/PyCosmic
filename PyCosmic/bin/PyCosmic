@@ -1,67 +1,139 @@
-#! /usr/bin/env python
-
-# Copyright 2012 Bernd Husemann
-#
-#
-#This file is part of PyCosmic.
-#
-#PyCosmic is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License  as published by
-#the Free Software Foundation, either version 3 of the License, or
-#any later version.
-#
-#PyCosmic is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
-#
-#You should have received a copy of the GNU General Public License
-#along with PyCosmic.  If not, see <http://www.gnu.org/licenses/>.
-
-__version__ = "0.5"
-
+#! /usr/bin/env python3
 import argparse
+from astropy.io import fits
+import numpy as np
 import PyCosmic
 
 
-parser = argparse.ArgumentParser(description="""
-Programm to detects cosmics in single exposure CCD frames. Important: The image and the readout noise are assumed to be in units of electrons.
-The image also needs to be BIAS subtracted! The gain can be entered to convert the image from ADUs to electros, when this is down already set gain=1.0 as the default. A bad pixel mask of cosmics and a cleaned image will be provided by the routine as an output.""", formatter_class=argparse.ArgumentDefaultsHelpFormatter,prog='PyCosmic',version='PyCosmic version .%s'%(__version__))
+__author__ = "Bernd Husemann"
+__credit__ = ['Bernd Husemann', 'Sebastian Kamann', 'Christer Sandin']
+__copyright__ = "Copyright 2020, Bernd Husemann"
+__license__ = "MIT"
+__url__ = 'https://github.com/brandherd/PyCosmic'
+__maintainer__ = "Bernd Husemann"
+__email__ = "berndhusemann@gmx.de"
+__status__ = "Development"
+__version__ = "0.6"
 
-parser.add_argument("raw", type=str, help="""File name of the CCD raw frame FITS file from which to detect and reject cosmic ray hits. This frame is expected to be BIAS subtracted. If it is not provided in units of electrons please provide the appropriate gain factor to convert from ADUs to electrons with the --gain parameter.
-""")
-parser.add_argument("clean", type=str, help="""File name of the cosmics cleaned frame to be stored as a FITS file.
-""")
-parser.add_argument("mask", type=str, help="""File name of the cosmics mask  frame to be stored as a FITS file.
-""")
-parser.add_argument("rdnoise", type=str, help="""Header keyword of the CCD read-out noise in electrons or alternatively the corresponding value as float number.
-""")
-parser.add_argument("--siglim", type=float, default=5.0, help="""Threshold value for the significance level of cosmics in units of the expected noise for the pixels.
-The default
-is 5.0.""")
-parser.add_argument("--fwhm", type=float,  default=2.0, help="""FWHM in pixels of the Gaussian convolution kernel used for the detection of cosmics. Should always been smaller than the FWHM of the instrumental PSF.
-The default
-is 2.0.""")
-parser.add_argument("--rlim", type=float, default=1.2, help="""Threshold value for the contrast value of cosmics against the smooth signal of the object. The optimal value depends on the FWHM of the instrument PSF and the FWHM of the 
-Gaussian smoothing kernel, i.e. --fwhm.
-Default
-is 1.2.""")
-parser.add_argument("--iter", type=int, default=5, help="""Number of iteration to be performed by the algorithms. Usually 5-6 iterations are needed to converge to a stable solution.
-Default
-is 5.""")
-parser.add_argument("--replacebox", type=int, nargs=2,  default=[5,5], help="""Size of the subimage (x and y-axis) around a detected cosmic ray pixel used to estimate a median value  from the unaffacted pixel in order to produce a cleaned frame. 
-The default
-is 5,5.""")
-parser.add_argument("--radius", type=int, default=0, help="""Number of neighboring pixel used to increase the boundaries of the detected cosmics. Should only be used if considered to be absolutely necessary.
-The default
-is 0.""")
-parser.add_argument("--gain", type=str, default='1.0', help="""Header keyword of the CCD gain or alternatively the corresponding value as float number when the bias-subtracted image was not yet converted to electron. The default is 1.0
-""")
-parser.add_argument("--parallel", action="store_true", default=False, help="""Flag to use 2 CPUs cores in parallel for the computations to speed up the process. The default is False.""")
-parser.add_argument("--verbose", action="store_true", default=False, help="""Flag to print some progress information on the screen. The default is False.""")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="""
+    PyCosmic programm to detect cosmic ray hits in single exposure CCD frames.  It is assumed that the input image is 
+    bias subtracted and in units of electrons. Alternatively, a bias level can be subtracted and/or the image can be 
+    converted from ADU to electrons with an optional gain factor. The output of the routine is a bad pixel mask and a 
+    cleaned image and the internally computed Poisson+read-noise error maps.""",
+                                    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                    prog='PyCosmic')
+
+    parser.add_argument("input", type=str, help="""File name of the input FITS file.""")
+    parser.add_argument("outprefix", type=str, help="""Prefix for FITS file(s) in which the output is being stored.""")
+    parser.add_argument("rdnoise", type=str, help="""Header keyword of the CCD read-out noise in electrons 
+    or alternatively the corresponding value as float number.""")
+    parser.add_argument("extension", type=str, help="""Extension number or extension name of the FITS file
+    in which the image data is stored for the procss. In case header keywords are needed for rdnoise or gain parameters,
+    they need to be available in the same FITS extension. The default is 0 for the primary header.""")
+    parser.add_argument("--siglim", type=float, default=5.0, help="""Threshold value for the significance level of 
+    cosmics ray affacted pixels in units of the pixel noise. The default value is 5.0.""")
+    parser.add_argument("--fwhm", type=float, nargs=2, default=[2.0,2.0], help="""FWHM in pixels of the Gaussian 
+    convolution kernel used for the detection of cosmics. This should be slightly less but close to the actual 
+    FWHM of the instrumental PSF in x and y direction. As a standard case we assume a symmetric PSF, but asymmetric 
+    cases are also possible depending on the spectrograph and binning of the frames.  The default is 2.0,2.0.""")
+    parser.add_argument("--rlim", type=float, default=1.2, help="""Threshold for the contrast value of cosmics
+    against the smooth signal of the object. The optimal value depends on the FWHM of the instrument PSF and the
+    FWHM of the Gaussian smoothing kernel, i.e. --fwhm. More details are provided in the publication of
+    Husemann et al. 2012, AA, Volume 545, A137.
+    The default is 1.2.""")
+    parser.add_argument("--iter", type=int, default=4, help="""Number of iteration to be performed by the algorithms. 
+    Usually 4-5 iterations are needed to converge to a stable solution. Default is 5.""")
+    parser.add_argument("--replacebox", type=int, nargs=2,  default=[5,5], help="""Size of the subimage 
+    along x and y-axis around a detected cosmic ray pixel used to estimate a median value from the unaffacted pixel in 
+    order to produce smooth error maps and cleaned frames. In case of fiber-fed spectrographs the box should be 
+    elongated in dispersion direction and at least 2 pixels in cross-dispersion direction. For other type of data it can
+    be symmetric. The default is 5,5.""")
+    parser.add_argument("--radius", type=int, default=0, help="""Integer number of neighboring pixel used to increase 
+    the boundaries of the detected cosmics. Should only be used if considered to be absolutely necessary. The default
+    is 0.""")
+    parser.add_argument("--gain", type=str, default='1.0', help="""Header keyword of the CCD gain or 
+    alternatively the corresponding value as float number when the bias-subtracted image was not yet converted 
+    to electron. The default is 1.0""")
+    parser.add_argument("--bias", type=float, default=0.0, help="""Optional subtraction of a bias level. 
+    The default is 0.0""")
+    parser.add_argument("--ext_out", action="store_true", default=False, help="""Flag to store the results in a single
+    FITS file in extensions DATA, ERROR and MASK. The default is False.""")
+    parser.add_argument("--verbose", action="store_true", default=False, help="""Flag to print some progress 
+    information on the screen. The default is False.""")
 
 
-args = parser.parse_args()
+    args = parser.parse_args()
+    input_image = args.input
+    outprefix = args.outprefix
+    siglim = args.siglim
+    rlim = args.rlim
+    fwhm = args.fwhm
+    iterations = args.iter
+    replace_box = args.replacebox
+    radius = args.radius
+    bias = args.bias
+    ext_out = args.ext_out
+    verbose = args.verbose
 
-PyCosmic.detCos(args.raw, args.mask, args.clean, args.rdnoise, gain=args.gain, sigma_det=args.siglim,  rlim=args.rlim, iter=args.iter, fwhm_gauss=args.fwhm, replace_box=args.replacebox,    increase_radius=args.radius, parallel=args.parallel, verbose=args.verbose)
+    try:
+        extension = int(args.extension)
+    except ValueError:
+        extension = args.extension
+
+    try:
+        hdu = fits.open(input_image)
+    except IOError:
+        print("Input FITS file could not be found. Please check file name and path.")
+
+    try:
+        data = hdu[extension].data
+        header_prime = hdu[0].header
+        header = hdu[extension].header
+    except IndexError:
+        print("Provided integer or string is invalid for an extension of the given FITS file.")
+
+    try:
+        gain = float(args.gain)
+    except ValueError:
+        try:
+            gain = float(header[args.gain])
+        except (KeyError, ValueError):
+            print("Invalid header keyword provided for the gain value.")
+
+    try:
+        rdnoise = float(args.rdnoise)
+    except ValueError:
+        try:
+            rdnoise = float(header[args.rdnoise])
+        except (KeyError, ValueError):
+            print("Invalid header keyword provided for the read-noise value.")
+
+
+
+    result = PyCosmic.det_cosmics(data, sigma_det=siglim, rlim=rlim, iterations=iterations,
+                                  fwhm_gauss=fwhm, replace_box=replace_box, replace_error=1e5, increase_radius=radius,
+                                  gain=gain, rdnoise=rdnoise, bias=bias, verbose=verbose)
+
+    if ext_out:
+        hdus = fits.HDUList([fits.PrimaryHDU,
+                             fits.ImageHDU(results.data, name='DATA'),
+                             fits.ImageHDU(results.error, name='ERROR'),
+                             fits.ImageHDU(result.mask.astype(np.uint16), name='MASK')])
+        hdus[0].header = header_prime
+        hdus.writeto(outprefix+".pycosmic.fits", output_verify='fix', overwrite=True)
+
+    else:
+        hdu = fits.PrimaryHDU(result.data)
+        hdu.header = header
+        hdu.writeto(outprefix+".data.fits", output_verify='silentfix', overwrite=True)
+
+        hdu = fits.PrimaryHDU(result.error)
+        hdu.header = header
+        hdu.writeto(outprefix+".error.fits", output_verify='silentfix', overwrite=True)
+
+        hdu = fits.PrimaryHDU(result.mask.astype(np.uint16))
+        hdu.header = header
+        hdu.writeto(outprefix+".mask.fits", output_verify='silentfix', overwrite=True)
+
 
