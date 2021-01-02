@@ -1,8 +1,6 @@
 import os
 import pytest
 import numpy as np
-from astropy.io import fits
-from scipy import ndimage
 import PyCosmic
 
 @pytest.fixture()
@@ -186,21 +184,13 @@ def test_image_convolve_gauss(array1, array2, array4):
     smooth2 = img.convolve_gauss(1, 1, mode='nearest', mask=True)
     assert np.sum(smooth1.data) < np.sum(smooth2.data)
 
-def test_image_replaceMask(array1, array2, array4):
+def test_image_replaceMask(array3, array4):
     img_empty = PyCosmic.Image()
     with pytest.raises(RuntimeError, match="Image object is empty. Nothing to process."):
         img_empty.replaceMaskMedian(10,10)
 
-@pytest.mark.datafiles('../example/PMAS_exp2.fits')
-def test_detection(datafiles):
-     path = str(datafiles)
-     file_path = os.path.join(path, 'PMAS_exp2.fits')
-     hdu = fits.open(file_path)
-     img = hdu[1].data
-     hdr = hdu[0].header
-     out = PyCosmic.det_cosmics(img, gain=hdr['GAIN'], rdnoise=hdr['RDNOISE'], rlim=1.4, replace_box=[10, 2], replace_error=100,
-                       iterations=4, verbose=False)
-     assert np.sum(out.mask) == 1514
-     assert np.mean(out.error[out.mask]) == 100
-#     assert len(os.listdir(path)) == 1
-#     assert os.path.isfile(file_path)
+    img = PyCosmic.Image(data=array3, mask=array4)
+    assert img.data[3,3] == -1
+    img.replaceMaskMedian(3,3)
+    assert img.data[3, 3] == 1
+
