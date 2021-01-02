@@ -95,3 +95,35 @@ def load_file(input_image, extension_arg=0, gain_arg=1.0, rdnoise_arg=1.0):
             print("Invalid header keyword provided for the read-noise value.")
             sys.exit(4)
     return data, header, header_prime, gain, rdnoise
+
+def save_results(result_img, outprefix, flag_ext=False):
+
+    if ext_out:
+        hdus = fits.HDUList([fits.PrimaryHDU,
+                             fits.ImageHDU(results.data, name='DATA'),
+                             fits.ImageHDU(results.error, name='ERROR'),
+                             fits.ImageHDU(result.mask.astype(np.uint16), name='MASK')])
+        hdus[0].header = header_prime
+        try:
+            hdus.writeto(outprefix+".pycosmic.fits", output_verify='fix', overwrite=True)
+        except IOError:
+            print("Output FITS file %s could not be stored. Please check path and prefix." % outprefix+".pycosmic.fits")
+            sys.exit(5)
+
+
+    else:
+        hdu = fits.PrimaryHDU(result.data)
+        hdu.header = header
+        try:
+            hdu.writeto(outprefix+".data.fits", output_verify='silentfix', overwrite=True)
+        except:
+            print("Output FITS file %s could not be stored. Please check path and prefix." % outprefix + ".data.fits")
+            sys.exit(7)
+
+        hdu = fits.PrimaryHDU(result.error)
+        hdu.header = header
+        hdu.writeto(outprefix+".error.fits", output_verify='silentfix', overwrite=True)
+
+        hdu = fits.PrimaryHDU(result.mask.astype(np.uint16))
+        hdu.header = header
+        hdu.writeto(outprefix+".mask.fits", output_verify='silentfix', overwrite=True)

@@ -13,8 +13,6 @@ __email__ = "berndhusemann@gmx.de"
 __status__ = "Development"
 __version__ = "0.6"
 
-
-
 if __name__ == "__main__":
 
     (input_image, outprefix, siglim, rlim, fwhm, iterations, replace_box, radius, bias, ext_out,
