@@ -14,11 +14,11 @@ def read_parameters():
 
     parser.add_argument("input", type=str, help="""File name of the input FITS file.""")
     parser.add_argument("outprefix", type=str, help="""Prefix for FITS file(s) in which the output is being stored.""")
-    parser.add_argument("rdnoise", type=str, help="""Header keyword of the CCD read-out noise in electrons 
-        or alternatively the corresponding value as float number.""")
     parser.add_argument("extension", type=str, help="""Extension number or extension name of the FITS file in which the 
         image data is stored for the procss. In case header keywords are needed for rdnoise or gain parameters,
         they need to be available in the same FITS extension.""")
+    parser.add_argument("rdnoise", type=str, help="""Header keyword of the CCD read-out noise in electrons 
+            or alternatively the corresponding value as float number.""")
     parser.add_argument("--siglim", type=float, default=5.0, help="""Threshold value for the significance level of 
         cosmics ray affacted pixels in units of the pixel noise.""")
     parser.add_argument("--fwhm", type=float, nargs=2, default=[2.0, 2.0], help="""FWHM in pixels of the Gaussian 
@@ -51,16 +51,20 @@ def read_parameters():
     args = parser.parse_args()
     input_image = args.input
     outprefix = args.outprefix
+    extension = args.extension
+    rdnoise = args.rdnoise
     siglim = args.siglim
     rlim = args.rlim
     fwhm = args.fwhm
     iterations = args.iter
     replace_box = args.replacebox
     radius = args.radius
+    gain = args.gain
     bias = args.bias
     ext_out = args.ext_out
     verbose = args.verbose
-    return input_image, outprefix, siglim, rlim, fwhm, iterations, replace_box, radius, bias, ext_out, verbose
+    return input_image, outprefix, extension, rdnoise, siglim, rlim, fwhm, iterations, replace_box, radius, gain, \
+           bias, ext_out, verbose
 
 def load_file(input_image, extension_arg=0, gain_arg=1.0, rdnoise_arg=1.0):
     try:
@@ -70,9 +74,13 @@ def load_file(input_image, extension_arg=0, gain_arg=1.0, rdnoise_arg=1.0):
         sys.exit(1)
 
     try:
-        data = hdu[extension_arg].data
+        try:
+            extension = int(extension_arg)
+        except ValueError:
+            extension = extension_arg
+        data = hdu[extension].data
         header_prime = hdu[0].header
-        header = hdu[extension_arg].header
+        header = hdu[extension].header
     except IndexError:
         print("Provided integer or string is invalid for an extension of the given FITS file.")
         sys.exit(2)
@@ -96,23 +104,22 @@ def load_file(input_image, extension_arg=0, gain_arg=1.0, rdnoise_arg=1.0):
             sys.exit(4)
     return data, header, header_prime, gain, rdnoise
 
-def save_results(result_img, outprefix, flag_ext=False):
+def save_results(result_img, outprefix, header_prime, header, flag_ext=False):
 
-    if ext_out:
+    if flag_ext:
         hdus = fits.HDUList([fits.PrimaryHDU,
-                             fits.ImageHDU(results.data, name='DATA'),
-                             fits.ImageHDU(results.error, name='ERROR'),
-                             fits.ImageHDU(result.mask.astype(np.uint16), name='MASK')])
+                             fits.ImageHDU(results_img.data, name='DATA'),
+                             fits.ImageHDU(results_img.error, name='ERROR'),
+                             fits.ImageHDU(result_img.mask.astype(np.uint16), name='MASK')])
         hdus[0].header = header_prime
+        hdus[1].header = header
         try:
             hdus.writeto(outprefix+".pycosmic.fits", output_verify='fix', overwrite=True)
         except IOError:
             print("Output FITS file %s could not be stored. Please check path and prefix." % outprefix+".pycosmic.fits")
             sys.exit(5)
-
-
     else:
-        hdu = fits.PrimaryHDU(result.data)
+        hdu = fits.PrimaryHDU(result_img.data)
         hdu.header = header
         try:
             hdu.writeto(outprefix+".data.fits", output_verify='silentfix', overwrite=True)
@@ -120,10 +127,10 @@ def save_results(result_img, outprefix, flag_ext=False):
             print("Output FITS file %s could not be stored. Please check path and prefix." % outprefix + ".data.fits")
             sys.exit(7)
 
-        hdu = fits.PrimaryHDU(result.error)
+        hdu = fits.PrimaryHDU(result_img.error)
         hdu.header = header
         hdu.writeto(outprefix+".error.fits", output_verify='silentfix', overwrite=True)
 
-        hdu = fits.PrimaryHDU(result.mask.astype(np.uint16))
+        hdu = fits.PrimaryHDU(result_img.mask.astype(np.uint16))
         hdu.header = header
         hdu.writeto(outprefix+".mask.fits", output_verify='silentfix', overwrite=True)
