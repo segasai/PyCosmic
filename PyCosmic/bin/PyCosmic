@@ -15,10 +15,10 @@ __version__ = "0.6"
 
 if __name__ == "__main__":
 
-    (input_image, outprefix, siglim, rlim, fwhm, iterations, replace_box, radius, bias, ext_out,
-     verbose) = PyCosmic.read_parameters()
-
-    (data, header, header_prime, gain, rdnoise) = PyCosmic.load_file(input_image, args.extension, args.gain, args.rdnoise)
+    (input_image, outprefix, extension, rdnoise_arg, siglim, rlim, fwhm, iterations, replace_box, radius, gain_arg,
+     bias, ext_out, verbose) = PyCosmic.read_parameters()
+    print(bias)
+    (data, header, header_prime, gain, rdnoise) = PyCosmic.load_file(input_image, extension, gain_arg, rdnoise_arg)
 
     try:
         result = PyCosmic.det_cosmics(data, sigma_det=siglim, rlim=rlim, iterations=iterations,
@@ -26,9 +26,9 @@ if __name__ == "__main__":
                                   gain=gain, rdnoise=rdnoise, bias=bias, verbose=verbose)
     except (RuntimeError, TypeError):
         print("Input FITS file %s is likely not in the right format. Please double check the file and the right"
-              "extension value for the parameters." % input_image)
+              " extension value for the parameters." % input_image)
         sys.exit(5)
 
-    PyCosmic.save_results(result, outprefix, flag_ext=ext_out)
+    PyCosmic.save_results(result, outprefix, header_prime, header, flag_ext=ext_out)
 
 
