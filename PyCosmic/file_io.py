@@ -3,6 +3,16 @@ from astropy.io import fits
 import numpy as np
 import argparse
 
+__author__ = "Bernd Husemann"
+__credit__ = ['Bernd Husemann', 'Sebastian Kamann', 'Christer Sandin']
+__copyright__ = "Copyright 2020, Bernd Husemann"
+__license__ = "MIT"
+__url__ = 'https://github.com/brandherd/PyCosmic'
+__maintainer__ = "Bernd Husemann"
+__email__ = "berndhusemann@gmx.de"
+__status__ = "Production"
+__version__ = "0.6"
+
 def read_parameters():
     parser = argparse.ArgumentParser(description="""
         PyCosmic programm to detect cosmic ray hits in single exposure CCD frames.  It is assumed that the input image is 

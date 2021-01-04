@@ -2,7 +2,6 @@
 import sys
 import PyCosmic
 
-
 __author__ = "Bernd Husemann"
 __credit__ = ['Bernd Husemann', 'Sebastian Kamann', 'Christer Sandin']
 __copyright__ = "Copyright 2020, Bernd Husemann"
@@ -10,8 +9,9 @@ __license__ = "MIT"
 __url__ = 'https://github.com/brandherd/PyCosmic'
 __maintainer__ = "Bernd Husemann"
 __email__ = "berndhusemann@gmx.de"
-__status__ = "Development"
+__status__ = "Production/Stable"
 __version__ = "0.6"
+
 
 if __name__ == "__main__":
 

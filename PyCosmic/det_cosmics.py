@@ -8,7 +8,7 @@ __license__ = "MIT"
 __url__ = 'https://github.com/brandherd/PyCosmic'
 __maintainer__ = "Bernd Husemann"
 __email__ = "berndhusemann@gmx.de"
-__status__ = "Development"
+__status__ = "Production"
 __version__ = "0.6"
 
 def det_cosmics(data, sigma_det=5, rlim=1.2, iterations=5, fwhm_gauss=[2.0,2.0], replace_box=[5, 5],

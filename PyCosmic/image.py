@@ -10,7 +10,7 @@ __license__ = "MIT"
 __url__ = 'https://github.com/brandherd/PyCosmic'
 __maintainer__ = "Bernd Husemann"
 __email__ = "berndhusemann@gmx.de"
-__status__ = "Development"
+__status__ = "Production"
 __version__ = "0.6"
 
 class Image(object):
