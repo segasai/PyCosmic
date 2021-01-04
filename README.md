@@ -60,7 +60,7 @@ guidelines values, but they should be adjusted for a specific data set.
 
 inst resolution | fwhm  | rlim
 ----------------|-------|----- 
-    1.5 |   1.5   | 2.2
+    1.5 |   1.5   |  2.2
     2.0 |   1.5	  |  0.8			
     2.0 |   2.0	  |  1.0					
     2.5 |   1.5   |  0.5
