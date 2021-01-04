@@ -58,15 +58,15 @@ The parameters for --fwhm and --rlim need to be set properly for the given datas
 and they are dependent on each other as well as on the instrumental resolution. The table below provides some 
 guidelines values, but they should be adjusted for a specific data set. 
 
-inst resolution | fwhm  | rlim
-----------------|-------|----- 
-    1.5 |   1.5   |  2.2
-    2.0 |   1.5	  |  0.8			
-    2.0 |   2.0	  |  1.0					
-    2.5 |   1.5   |  0.5
-    2.5 |   2.0   |  0.8 
-    3.0 |   1.5   |  0.2
-    3.0 |   2.5   |  0.5
+| inst resolution | fwhm    | rlim |
+| -------------- | ------- | ---- |
+|  1.5     |   1.5   |  2.2 |
+|  2.0     |   1.5   |  0.8	|		
+|  2.0     |   2.0   |  1.0	|				
+|  2.5     |   1.5   |  0.5 |
+|  2.5     |   2.0   |  0.8 |
+|  3.0     |   1.5   |  0.2 |
+|  3.0     |   2.5   |  0.5 |
 
 More details are found in the article.
 
