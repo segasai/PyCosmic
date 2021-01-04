@@ -10,10 +10,8 @@ PyCosmic is running with python 3. Dependencies are listed in the requirements.t
 1. Download and unpack the PyCosmic package from github in a directory of your choice 
 2. Change into the directory
 3. Install PyCosmic with the normal installation command`python setup.py install`
-4. You can now try to start PyCosmic from any directory with the command `PyCosmic -h`
-
-
-
+4. Run `pytest` to check that PyCosmic is properly working with your environment
+5. You can now try to start PyCosmic from any directory with the command `PyCosmic -h`
 
 ## Usage
 IMPORTANT: The input frame is expected to be BIAS-level subtracted and coverted to ADU with the gain value. If those

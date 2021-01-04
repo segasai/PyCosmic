@@ -13,7 +13,7 @@ import PyCosmic
 #     assert load_file(input_image)
 
 
-@pytest.mark.datafiles('../example/PMAS_exp2.fits')
+@pytest.mark.datafiles('example/PMAS_exp2.fits')
 def test_detection(datafiles):
      path = str(datafiles)
      file_path = os.path.join(path, 'PMAS_exp2.fits')
