@@ -12,9 +12,9 @@ setup(name='PyCosmic',
             'License :: OSI Approved :: MIT License',
             'Operating System :: OS Independent',
             'Programming Language :: Python :: 3 :: Only',
-            'Topic :: Scientific/Engineering :: Astronomy'.
+            'Topic :: Scientific/Engineering :: Astronomy',
             'Topic :: Scientific/Engineering :: Image Processing'
-      ]
+      ],
       packages=['PyCosmic'],
       url='http://sourceforge.net/projects/pycosmic/',
       install_requires=['scipy>=1.3.0','numpy>=1.17','astropy>=3.0'],
